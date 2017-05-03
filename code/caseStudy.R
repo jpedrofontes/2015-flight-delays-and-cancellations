@@ -220,13 +220,13 @@ barplot(airline.times,
 dev.off()
 
 ###### 3. Predict if a flight will be delayed and the delay #####
-##### 3.1. Predict if a flight will be delayed ####
 # Set seed to get always the same results
 set.seed(123456)
 
 # Get attributes to use for prediction
 pred.att <- c("AIRLINE", "DESTINATION_AIRPORT", "ORIGIN_AIRPORT", "MONTH", "DAY", "DAY_OF_WEEK", "SCHEDULED_DEPARTURE", "SCHEDULED_TIME", "SCHEDULED_ARRIVAL")
 
+##### 3.1. Predict if a flight will be delayed ####
 # Generate train and test datasets
 train <- sample(1:nrow(flights),
                 size = ceiling(0.7 * nrow(flights)),
@@ -235,16 +235,10 @@ flights.train <- flights[train, c(pred.att, "DELAYED")]
 flights.test <- flights[-train, c(pred.att, "DELAYED")]
 
 #### Logistic Regression ####
-train <- sample(1:nrow(flights.train),
-                size = ceiling(0.2 * nrow(flights.train)),
-                replace = FALSE)
-
-flights.logit.train <- flights.train[train, ]
-
 # Build logistic regression model
 flights.logit <- glm(DELAYED ~ .,
-                     family = gaussian(link = "identity"),
-                     data = flights.logit.train)
+                     family = binomial(link = 'logit'), 
+                     data = flights.train)
 
 # Evaluate the logistic model
 flights.logit.probs <- predict(flights.logit, 
