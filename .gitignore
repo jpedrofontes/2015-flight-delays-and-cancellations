@@ -31,3 +31,28 @@ vignettes/*.pdf
 # Temporary files created by R markdown
 *.utf8.md
 *.knit.md
+201617-UM-BI-AD-EnunciadoTrabalho.pdf
+ProjectAdditionalInfo.pdf
+code/.Rplot01.png-wXYN
+code/Flight Delays.Rproj
+code/datasets/airlines.csv
+code/datasets/airports.csv
+code/datasets/flights.csv
+code/plots/flights.byAirline.png
+code/plots/map.airports.png
+code/plots/time.metrics.png
+code/plots/times.info.png
+code/questions/airlines.times.png
+code/questions/airports.dest.dendro.png
+code/questions/airports.dest.heatmap.png
+code/questions/airports.dest.kmeans.3.png
+code/questions/airports.dest.kmeans.5.png
+code/questions/airports.origin.dendro.png
+code/questions/airports.origin.heatmap.png
+code/questions/airports.origin.kmeans.3.png
+code/questions/airports.origin.kmeans.5.png
+code/questions/delayed.tree.png
+code/questions/times.monthly.png
+code/sessions/flights.session
+report/stage 1/201617-UM-AD-Relatorio.doc
+report/stage 2/201617-UM-AD-Relatorio.doc
