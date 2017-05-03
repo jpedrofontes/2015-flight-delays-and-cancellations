@@ -1,2 +1,8 @@
-# 2015-flight-delays-and-cancellations
+# 2015 Flight Delays and Cancellations
 A knowledge extraction project from the dataset of USA's flights from the year of 2015
+
+## Usage
+1. Download datasets, available in [Kaggle](https://www.kaggle.com/usdot/flight-delays)
+2. Run provided code in R console and explore the different results
+
+Note that the report of this work is in Portuguese (it was an academic work), so maybe you will have problems in understanding the project, but the R code is explained, and the comments will guide you through this work
