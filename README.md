@@ -2,7 +2,7 @@
 A knowledge extraction project from the dataset of USA's flights from the year of 2015
 
 ## Usage
-1. Download datasets, available in [Kaggle](https://www.kaggle.com/usdot/flight-delays)
+1. Download datasets, available in [Kaggle](https://www.kaggle.com/usdot/flight-delays) and add them to ./datasets folder (create it)
 2. Run provided code in R console and explore the different results
 
 If you have any questions, feel free to contact me by my email (jpedrofontes8@gmail.com). Note that the report of this work is in Portuguese (it was an academic work), so maybe you will have problems in understanding the project, but the R code is explained, and the comments will guide you through this work
