@@ -313,7 +313,6 @@ flights.net.cm <- confusionMatrix(flights.net.pred,
 print(flights.net.cm)
 
 ##### 3.2. Predict the delay of a flight ####
-
 # Build regression model
 flights.regression <- lm(DELAY ~ AIRLINE + DESTINATION_AIRPORT +
                            ORIGIN_AIRPORT + MONTH + DAY + DAY_OF_WEEK + SCHEDULED_DEPARTURE + 
