@@ -220,35 +220,17 @@ barplot(airline.times,
 dev.off()
 
 ###### 3. Predict if a flight will be delayed and the delay #####
-# Set seed to get always the same results
-set.seed(123456)
-
 # Get attributes to use for prediction
 pred.att <- c("AIRLINE", "DESTINATION_AIRPORT", "ORIGIN_AIRPORT", "MONTH", "DAY", "DAY_OF_WEEK", "SCHEDULED_DEPARTURE", "SCHEDULED_TIME", "SCHEDULED_ARRIVAL")
 
 ##### 3.1. Predict if a flight will be delayed ####
 # Generate train and test datasets
+set.seed(123456)
 train <- sample(1:nrow(flights),
                 size = ceiling(0.7 * nrow(flights)),
                 replace = FALSE)
 flights.train <- flights[train, c(pred.att, "DELAYED")]
 flights.test <- flights[-train, c(pred.att, "DELAYED")]
-
-#### Logistic Regression ####
-# Build logistic regression model
-flights.logit <- glm(DELAYED ~ .,
-                     family = binomial(link = 'logit'), 
-                     data = flights.train)
-
-# Evaluate the logistic model
-flights.logit.probs <- predict(flights.logit, 
-                               flights.test[, pred.att])
-flights.logit.pred <- rep(FALSE, 
-                          nrow(flights.test))
-flights.logit.pred[flights.logit.probs > 0.4] <- TRUE
-flights.logit.cm <- confusionMatrix(flights.logit.pred, 
-                                    flights.test[, "DELAYED"])
-print(flights.logit.cm)
 
 #### Decision Tree ####
 # Create the tree model
@@ -289,43 +271,30 @@ flights.rf.cm <- confusionMatrix(flights.rf.pred,
                                  flights.test[, "DELAYED"])
 print(flights.rf.cm)
 
-#### Neural Network ####
-# Build network model
-flights.net <- neuralnet(DELAYED ~ ., 
-                         data = flights.train, 
-                         hidden = c(4,4), 
-                         lifesign = "minimal", 
-                         linear.output = FALSE, 
-                         threshold = 0.1)
-
-# Plot the net
-plot(flights.net, 
-     rep = "best")
-
-# Evaluate the net predictions
-flights.net.prob <- predict(flights.net, 
-                            flights.test[, pred.att])
-flights.net.pred <- rep(FALSE, 
-                        nrow(flights.test))
-flights.net.pred[flights.net.probs > 0.4] <- TRUE
-flights.net.cm <- confusionMatrix(flights.net.pred, 
-                                  flights.test[, "DELAYED"])
-print(flights.net.cm)
-
 ##### 3.2. Predict the delay of a flight ####
-# Build regression model
-flights.regression <- lm(DELAY ~ AIRLINE + DESTINATION_AIRPORT +
-                           ORIGIN_AIRPORT + MONTH + DAY + DAY_OF_WEEK + SCHEDULED_DEPARTURE + 
-                           SCHEDULED_TIME + SCHEDULED_ARRIVAL, 
-                         data = flights.train)
+# Generate train and test datasets
+set.seed(123456)
+train <- sample(1:nrow(flights),
+                size = ceiling(0.7 * nrow(flights)),
+                replace = FALSE)
+flights.train <- flights[train, c(pred.att, "DELAY")]
+flights.test <- flights[-train, c(pred.att, "DELAY")]
 
-# Test regression model
-flights.regression.pred = predict(flights.regression,
-                                  flights.test, 
-                                  type = "response")
-# Confusion matrix
-table(flights.regression.pred, 
-      flights.test[, "DELAY"]) 
+#### Logistic logitession ####
+# Build logitession model
+flights.logit <- glm(DELAY ~ .,
+                    family = binomial(link='logit'),
+                    data = flights.train)
+
+# Evaluate the logitession model
+flights.logit.probs <- predict(flights.logit, 
+                               flights.test[, pred.att])
+flights.logit.pred <- rep(FALSE, 
+                          nrow(flights.test))
+flights.logit.pred[flights.logit.probs > 0.4] <- TRUE
+flights.logit.cm <- confusionMatrix(flights.logit.pred, 
+                                    flights.test[, "DELAYED"])
+print(flights.logit.cm)
 
 ###### 4. Group airports by delays #####
 # Start by group origin airports
@@ -494,7 +463,7 @@ dev.off()
 # Select airport, airline and delay attributes
 flights.association.data <- flights[, c("ORIGIN_AIRPORT", "DESTINATION_AIRPORT", "AIRLINE", "DELAY")]
 
-# Discretize DELAY attribute in 5 intervalsof equal frequency (None, Small, Medium, Large & Huge)
+# Discretize DELAY attribute in 5 intervals of equal frequency (None, Small, Medium, Large & Huge)
 flights.association.data[, "DELAY"] <- discretize(flights.association.data[, "DELAY"],
                                                   method = "frequency",
                                                   categories = 5,
