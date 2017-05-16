@@ -22,7 +22,7 @@ sum(flights[, "CANCELLED"] == 0)
 # Function to fix inconsistent airport codes
 # Thanks to Scott A. Miller on Kaggle
 # install.packages("dplyr")
-Airport_ID_to_IATA <- function (x) {
+id.to.iata <- function (x) {
   #  Step 0: Initial setup 
   #  Load the incoming vector into a data frame, so we can use dplyr functions to join things up.
   df <- data.frame(ID = as.character (x), 
@@ -61,8 +61,8 @@ Airport_ID_to_IATA <- function (x) {
 }
 
 # Fix airport codes in flights dataset
-flights$ORIGIN_AIRPORT <- Airport_ID_to_IATA(flights$ORIGIN_AIRPORT)
-flights$DESTINATION_AIRPORT <- Airport_ID_to_IATA(flights$DESTINATION_AIRPORT)
+flights$ORIGIN_AIRPORT <- id.to.iata(flights$ORIGIN_AIRPORT)
+flights$DESTINATION_AIRPORT <- id.to.iata(flights$DESTINATION_AIRPORT)
 
 # Merge datasets
 # We need to change the name of a column in airlines dataset
@@ -491,4 +491,56 @@ clusplot(airports.dest.times[, delay.att],
 dev.off()
 
 ###### 5. Check patterns in airports and airlines #####
-# ...
+# Select airport, airline and delay attributes
+flights.association.data <- flights[, c("ORIGIN_AIRPORT", "DESTINATION_AIRPORT", "AIRLINE", "DELAY")]
+
+# Discretize DELAY attribute in 5 intervalsof equal frequency (None, Small, Medium, Large & Huge)
+flights.association.data[, "DELAY"] <- discretize(flights.association.data[, "DELAY"],
+                                                  method = "frequency",
+                                                  categories = 5,
+                                                  labels = c("None",
+                                                             "Small",
+                                                             "Medium",
+                                                             "Large",
+                                                             "Huge"))
+
+# Transform data frame to transactions
+flights.association.data[, c(1,2)] <- lapply(flights.association.data[, c(1,2)],
+                                             as.factor)
+flights.association.data <- as(flights.association.data,
+                               "transactions")
+
+# Run Apriori algorithm
+flights.rules <- apriori(flights.association.data,
+                         parameter = list(support = 0.000001, 
+                                          confidence = 0.4))
+
+# Analyze the rules 
+summary(flights.rules)
+inspect(flights.rules[1:10])
+inspect(sort(flights.rules, 
+             by = "lift")[1:10])
+
+# Select rules that have great delay and analyze them
+for (att in c("Large","Huge")) {
+  flights.rules.sub = subset(flights.rules, 
+                             subset = (rhs %in% paste("DELAY=", att, sep="")))
+  inspect(sort(flights.rules.sub, 
+               by = "lift")[1:10])
+  # Plot rules
+  png(paste("questions/flights.rules.delays.", att, ".png", sep=""),
+      w = 1013,
+      h = 720)
+  plot(sort(flights.rules.sub, 
+            by = "lift")[1:10], 
+       method = "graph", 
+       control = list(type = "items"))
+  dev.off()
+  # Write delay rules to file
+  write(sort(flights.rules.sub, 
+             by = "lift"), 
+        file = paste("questions/flights.rules.delays.", att, ".csv", sep=""), 
+        sep = "\t", 
+        quote = TRUE, 
+        row.names = FALSE) 
+}
