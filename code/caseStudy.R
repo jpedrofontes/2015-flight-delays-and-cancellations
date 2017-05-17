@@ -1,8 +1,7 @@
-####### UTILITIES ######
-is.not.na <- function(x) ! is.na(x)
+####### 1. DATA PREPARATION ######
+# Run this if you already have an existing session
 # load("sessions/flights.session")
 
-####### DATA PREPARATION ######
 # Read datasets
 airlines <- read.csv("datasets/airlines.csv")
 airports <- read.csv("datasets/airports.csv")
@@ -95,7 +94,7 @@ flights[, "DELAYED"] <- flights[, "DELAY"] > 0
 # Save the current R session.
 save.image("sessions/flights.session")
 
-####### EXPLORATIVE ANALISYS ######
+####### 2. EXPLORATIVE ANALISYS ######
 # install.packages("maps")
 library("maps")
 
@@ -135,7 +134,7 @@ dev.off()
 png("plots/times.info.png",
     w = 1413,
     h = 1080)
-par(mfrow=c(4,3))
+par(mfrow = c(4,3))
 for (att in time.att){
   hist(flights[, att],
        main=att,
@@ -157,7 +156,7 @@ pairs(flights[ ,time.att],
       lower.panel = panel.smooth)
 dev.off()
 
-####### KNOWLEDGE EXTRACTION OBJECTIVES ######
+####### 3. KNOWLEDGE EXTRACTION OBJECTIVES ######
 # install.packages("rpart")
 library(rpart)
 # install.packages("rpart.plot")
@@ -166,8 +165,8 @@ library(rpart.plot)
 library(caret)
 # install.packages("randomForest")
 library(randomForest)
-# install.packages("neuralnet")
-library(neuralnet)
+# install.packages("MASS")
+library(MASS)
 # install.packages("cluster")
 library(cluster)
 # install.packages("arules")
@@ -175,7 +174,7 @@ library(arules)
 # install.packages("arulesViz")
 library(arulesViz)
 
-###### 1. Best time of the year to travel #####
+###### 3.1. Best time of the year to travel #####
 # Get the mean of all delays in all months
 months <- seq(1, 12, 1)
 months.delays <- rep(0, 12)
@@ -197,7 +196,7 @@ barplot(months.delays,
         main = "Delays by Month")
 dev.off()
 
-###### 2. Best airline to travel within #####
+###### 3.2. Best airline to travel within #####
 # Get the sum of all delay times
 airline.codes <- airlines$IATA_CODE
 airline.times <- rep(0, length(airline.codes))
@@ -219,11 +218,11 @@ barplot(airline.times,
         main = "Airline Mean Delay Times")
 dev.off()
 
-###### 3. Predict if a flight will be delayed and the delay #####
+###### 3.3. Predict if a flight will be delayed and the delay #####
 # Get attributes to use for prediction
 pred.att <- c("AIRLINE", "DESTINATION_AIRPORT", "ORIGIN_AIRPORT", "MONTH", "DAY", "DAY_OF_WEEK", "SCHEDULED_DEPARTURE", "SCHEDULED_TIME", "SCHEDULED_ARRIVAL")
 
-##### 3.1. Predict if a flight will be delayed ####
+##### 3.3.1. Predict if a flight will be delayed ####
 # Generate train and test datasets
 set.seed(123456)
 train <- sample(1:nrow(flights),
@@ -232,7 +231,7 @@ train <- sample(1:nrow(flights),
 flights.train <- flights[train, c(pred.att, "DELAYED")]
 flights.test <- flights[-train, c(pred.att, "DELAYED")]
 
-#### Decision Tree ####
+#### 3.3.1.1. Decision Tree ####
 # Create the tree model
 flights.tree = rpart(DELAYED ~ ., 
                      data = flights.train)
@@ -254,7 +253,7 @@ flights.tree.cm <- confusionMatrix(flights.tree.pred,
                                    flights.test[, "DELAYED"])
 print(flights.tree.cm)
 
-#### Random Forests ####
+#### 3.3.1.2. Random Forests ####
 # Create the random forest model
 flights.rf = randomForest(DELAYED ~ ., 
                           data = flights.train, 
@@ -271,32 +270,41 @@ flights.rf.cm <- confusionMatrix(flights.rf.pred,
                                  flights.test[, "DELAYED"])
 print(flights.rf.cm)
 
-##### 3.2. Predict the delay of a flight ####
-# Generate train and test datasets
+#### 3.3.1.3. Support Vector Machines ####
+# ...
+
+#### 3.3.1.4. k-Nearest Neighbours ####
+# ...
+
+##### 3.3.2. Predict the delay of a flight ####
+# Take a sample of the dataset
 set.seed(123456)
-train <- sample(1:nrow(flights),
-                size = ceiling(0.7 * nrow(flights)),
-                replace = FALSE)
-flights.train <- flights[train, c(pred.att, "DELAY")]
-flights.test <- flights[-train, c(pred.att, "DELAY")]
+sample <- sample(1:nrow(flights),
+                 size = ceiling(0.1 * (nrow(flights))),
+                 replace = FALSE)
+flights.sample <- flights[sample, c(pred.att, "DELAY")]
 
-#### Logistic logitession ####
-# Build logitession model
-flights.logit <- glm(DELAY ~ .,
-                    family = binomial(link='logit'),
-                    data = flights.train)
+#### 3.3.2.1. Regression model ####
+# Build regression model
+flights.regr <- lm(DELAY ~ .,
+                   data = flights.sample)
 
-# Evaluate the logitession model
-flights.logit.probs <- predict(flights.logit, 
-                               flights.test[, pred.att])
-flights.logit.pred <- rep(FALSE, 
-                          nrow(flights.test))
-flights.logit.pred[flights.logit.probs > 0.4] <- TRUE
-flights.logit.cm <- confusionMatrix(flights.logit.pred, 
-                                    flights.test[, "DELAYED"])
-print(flights.logit.cm)
+# Get model predictions
+flights.regr.pred <- as.numeric(predict(flights.regr, 
+                                        flights.sample[, pred.att]))
 
-###### 4. Group airports by delays #####
+# Plot the evaluation
+png("questions/delay.predictions.png",
+    w = 1413,
+    h = 1080)
+plot(flights.regr.pred,
+     flights.sample$DELAY,
+     main = "Flight Delay Predictions",
+     xlab = "Predictions",
+     ylab = "Real Values")
+dev.off()
+
+###### 3.4. Group airports by delays #####
 # Start by group origin airports
 # Start by a hierarchical cluster
 # Prepare dataset
@@ -459,7 +467,7 @@ clusplot(airports.dest.times[, delay.att],
          lines = 0)
 dev.off()
 
-###### 5. Check patterns in airports and airlines #####
+###### 3.5. Check patterns in airports and airlines #####
 # Select airport, airline and delay attributes
 flights.association.data <- flights[, c("ORIGIN_AIRPORT", "DESTINATION_AIRPORT", "AIRLINE", "DELAY")]
 
