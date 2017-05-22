@@ -89,7 +89,7 @@ summary(flights[ ,time.att])
 # DELAY represents the sum of all delay attributes
 # DELAYED represents if the flight as been delayed or not (positive delay)
 flights[, "DELAY"] <- rowSums(flights[, delay.att])
-flights[, "DELAYED"] <- flights[, "DELAY"] > 0
+flights[, "DELAYED"] <- ifelse(flights$DELAY > 0, 0, 1)
 
 # Save the current R session.
 save.image("sessions/flights.session")
@@ -163,10 +163,12 @@ library(rpart)
 library(rpart.plot)
 # install.packages("caret")
 library(caret)
-# install.packages("randomForest")
-library(randomForest)
+# install.packages("rminer")
+library(rminer)
 # install.packages("MASS")
 library(MASS)
+# install.packages("e1071")
+library(e1071)
 # install.packages("cluster")
 library(cluster)
 # install.packages("arules")
@@ -222,19 +224,53 @@ dev.off()
 # Get attributes to use for prediction
 pred.att <- c("AIRLINE", "DESTINATION_AIRPORT", "ORIGIN_AIRPORT", "MONTH", "DAY", "DAY_OF_WEEK", "SCHEDULED_DEPARTURE", "SCHEDULED_TIME", "SCHEDULED_ARRIVAL")
 
-##### 3.3.1. Predict if a flight will be delayed ####
+# Take a sample of the dataset to speed up models construction
+set.seed(123456)
+sample <- sample(1:nrow(flights),
+                 size = ceiling(0.2 * (nrow(flights))),
+                 replace = FALSE)
+flights.sample <- flights[sample, c(pred.att, "DELAY", "DELAYED")]
+
 # Generate train and test datasets
 set.seed(123456)
-train <- sample(1:nrow(flights),
-                size = ceiling(0.7 * nrow(flights)),
-                replace = FALSE)
-flights.train <- flights[train, c(pred.att, "DELAYED")]
-flights.test <- flights[-train, c(pred.att, "DELAYED")]
+train <- createDataPartition(flights.sample$DELAYED,
+                             p = 2/3,
+                             list = FALSE)
+flights.train <- flights.sample[train, ]
+flights.test <- flights.sample[-train, ]
 
-#### 3.3.1.1. Decision Tree ####
+##### 3.3.1. Predict if a flight will be delayed ####
+
+#### 3.3.2.1. Regression model ####
+# Build regression model
+flights.regr <- lm(DELAYED ~ .,
+                   data = flights.train[, c(pred.att, "DELAYED")])
+
+# Get model predictions
+flights.regr.probs <- predict(flights.regr,
+                              flights.test[, pred.att])
+flights.regr.pred = rep(0, 
+                        nrow(flights.test))
+flights.regr.pred[flights.regr.probs > 0.5] = 1
+flights.regr.cm <- confusionMatrix(flights.regr.pred, 
+                                   flights.test[, "DELAYED"],
+                                   positive = '1')
+print(flights.regr.cm)
+
+# Plot the ROC curve
+png("questions/delayed.predictions.regr.png",
+    w = 1013,
+    h = 720)
+mgraph(flights.test[, "DELAYED"],
+       flights.regr.pred,
+       graph = "ROC")
+dev.off()
+
+#### 3.3.1.2. Decision Tree ####
 # Create the tree model
 flights.tree = rpart(DELAYED ~ ., 
-                     data = flights.train)
+                     data = flights.train[, c(pred.att, "DELAYED")],
+                     method = "anova")
 
 # Plot the tree
 png("questions/delayed.tree.png",
@@ -246,62 +282,66 @@ dev.off()
 # Evaluate the tree predictions
 flights.tree.probs <- predict(flights.tree, 
                               flights.test[, pred.att])
-flights.tree.pred <- rep(FALSE, 
-                         nrow(flights.test))
-flights.tree.pred[flights.tree.probs > 0.4] <- TRUE
+flights.tree.pred = rep(0, 
+                        nrow(flights.test))
+flights.tree.pred[flights.tree.probs > 0.6] = 1
 flights.tree.cm <- confusionMatrix(flights.tree.pred, 
-                                   flights.test[, "DELAYED"])
+                                   flights.test[, "DELAYED"],
+                                   positive = '1')
 print(flights.tree.cm)
 
-#### 3.3.1.2. Random Forests ####
-# Create the random forest model
-flights.rf = randomForest(DELAYED ~ ., 
-                          data = flights.train, 
-                          mtry = floor(sqrt(ncol(flights))), 
-                          ntree = 50)
+# Plot the ROC curve
+png("questions/delayed.predictions.tree.png",
+    w = 1013,
+    h = 720)
+mgraph(flights.test[, "DELAYED"],
+       flights.tree.pred,
+       graph = "ROC")
+dev.off()
 
-# Evaluate the forest predictions
-flights.rf.prob <- predict(flights.rf, 
+#### 3.3.1.3. Naive Bayes ####
+# Create the probabilistic model
+flights.nb = naiveBayes(DELAYED ~ .,
+                        data = flights.train[, c(pred.att, "DELAYED")])
+
+# Evaluate the probabilistic predictions
+flights.nb.pred <- predict(flights.nb, 
                            flights.test[, pred.att])
-flights.rf.pred <- rep(FALSE, 
-                       nrow(flights.test))
-flights.rf.pred[flights.rf.probs > 0.4] <- TRUE
-flights.rf.cm <- confusionMatrix(flights.rf.pred, 
-                                 flights.test[, "DELAYED"])
-print(flights.rf.cm)
+flights.nb.cm <- confusionMatrix(flights.nb.pred, 
+                                 flights.test[, "DELAYED"],
+                                 positive = '1')
+print(flights.nb.cm)
 
-#### 3.3.1.3. Support Vector Machines ####
-# ...
-
-#### 3.3.1.4. k-Nearest Neighbours ####
-# ...
+# Plot the ROC curve
+png("questions/delayed.predictions.nb.png",
+    w = 1013,
+    h = 720)
+mgraph(flights.test[, "DELAYED"],
+       flights.nb.pred,
+       graph = "ROC")
+dev.off()
 
 ##### 3.3.2. Predict the delay of a flight ####
-# Take a sample of the dataset
-set.seed(123456)
-sample <- sample(1:nrow(flights),
-                 size = ceiling(0.1 * (nrow(flights))),
-                 replace = FALSE)
-flights.sample <- flights[sample, c(pred.att, "DELAY")]
 
 #### 3.3.2.1. Regression model ####
 # Build regression model
-flights.regr <- lm(DELAY ~ .,
-                   data = flights.sample)
+flights.delayed.regr <- lm(DELAY ~ .,
+                           data = flights.train[, c(pred.att, "DELAY")])
 
-# Get model predictions
-flights.regr.pred <- as.numeric(predict(flights.regr, 
-                                        flights.sample[, pred.att]))
+# Evaluate model predictions
+flights.delayed.regr.pred <- as.numeric(predict(flights.delayed.regr, 
+                                        flights.test[, pred.att]))
+print(mmetric(flights.test[, "DELAY"],
+              flights.delayed.regr.pred,
+              c("SSE","RMSE","MAE")))
 
-# Plot the evaluation
+# Plot the REC curve
 png("questions/delay.predictions.png",
-    w = 1413,
-    h = 1080)
-plot(flights.regr.pred,
-     flights.sample$DELAY,
-     main = "Flight Delay Predictions",
-     xlab = "Predictions",
-     ylab = "Real Values")
+    w = 1013,
+    h = 720)
+mgraph(flights.test[, "DELAY"],
+       flights.delayed.regr.pred,
+       graph = "REC")
 dev.off()
 
 ###### 3.4. Group airports by delays #####
