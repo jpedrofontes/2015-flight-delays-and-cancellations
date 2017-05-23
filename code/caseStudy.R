@@ -105,8 +105,8 @@ map("usa")
 title("Airports")
 points(airports$LONGITUDE,
        airports$LATITUDE,
-       col="red",
-       cex=0.75)
+       col = "red",
+       cex = 0.75)
 dev.off()
 
 # Number of Flights per Airline
@@ -146,14 +146,6 @@ hist(flights[, "DELAY"],
 barplot(table(flights[, "DELAYED"]),
         main="DELAYED FLIGHTS",
         col="orange")
-dev.off()
-
-# Check correlation between attributes
-png("plots/pairs.times.png",
-    w = 1413,
-    h = 1080)
-pairs(flights[ ,time.att], 
-      lower.panel = panel.smooth)
 dev.off()
 
 ####### 3. KNOWLEDGE EXTRACTION OBJECTIVES ######
@@ -208,7 +200,7 @@ for (i in 1:length(airline.codes)) {
 }
 
 # Plot the resulting graph in a barplot
-png("questions/airlines.times.png",
+png("questions/airlines.delays.png",
     w = 1413,
     h = 1080)
 barplot(airline.times, 
@@ -218,6 +210,25 @@ barplot(airline.times,
         xlab = "Airline Codes",
         ylab = "Delay Mean",
         main = "Airline Mean Delay Times")
+dev.off()
+
+airline.times <- rep(0, length(airline.codes))
+for (i in 1:length(airline.codes)) {
+  x <- flights[flights[, "AIRLINE"] == airline.codes[i], time.att]
+  airline.times[i] <- sum(x)/nrow(x)
+}
+
+# Plot the resulting graph in a barplot
+png("questions/airlines.times.png",
+    w = 1413,
+    h = 1080)
+barplot(airline.times, 
+        las = 0,
+        names.arg = airline.codes,
+        col = "orange",
+        xlab = "Airline Codes",
+        ylab = "Mean Dispatch Time",
+        main = "Airline Mean Flight Dispatch Times")
 dev.off()
 
 ###### 3.3. Predict if a flight will be delayed and the delay #####
@@ -300,15 +311,25 @@ mgraph(flights.test[, "DELAYED"],
 dev.off()
 
 #### 3.3.1.3. Naive Bayes ####
+# Convert all the categorical features to factor
+flights.train[sapply(flights.train, is.character)] <- lapply(flights.train[sapply(flights.train, is.character)], as.factor)
+flights.test[sapply(flights.test, is.character)] <- lapply(flights.test[sapply(flights.test, is.character)], as.factor)
+
+str(flights.train)
+str(flights.test)
+
 # Create the probabilistic model
-flights.nb = naiveBayes(DELAYED ~ .,
+# DELAYED needs to be converted to factor because of the Naive Bayes definition
+# "Computes the conditional a-posterior probabilities of a **categorical** class variable 
+# given independent predictor variables using the Bayes rule."
+flights.nb = naiveBayes(as.factor(DELAYED) ~ .,
                         data = flights.train[, c(pred.att, "DELAYED")])
 
 # Evaluate the probabilistic predictions
 flights.nb.pred <- predict(flights.nb, 
                            flights.test[, pred.att])
 flights.nb.cm <- confusionMatrix(flights.nb.pred, 
-                                 flights.test[, "DELAYED"],
+                                 as.factor(flights.test[, "DELAYED"]),
                                  positive = '1')
 print(flights.nb.cm)
 
@@ -316,8 +337,8 @@ print(flights.nb.cm)
 png("questions/delayed.predictions.nb.png",
     w = 1013,
     h = 720)
-mgraph(flights.test[, "DELAYED"],
-       flights.nb.pred,
+mgraph(as.numeric(flights.test[, "DELAYED"]),
+       as.numeric(flights.nb.pred),
        graph = "ROC")
 dev.off()
 
