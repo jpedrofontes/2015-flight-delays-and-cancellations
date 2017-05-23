@@ -59,13 +59,15 @@ id.to.iata <- function (x) {
   return (df$ID)
 }
 
-# Fix airport codes in flights dataset
+# Fix airport codes in flights dataset using id.to.iata function
 flights$ORIGIN_AIRPORT <- id.to.iata(flights$ORIGIN_AIRPORT)
 flights$DESTINATION_AIRPORT <- id.to.iata(flights$DESTINATION_AIRPORT)
 
-# Merge datasets
+# Merge data frames in one
 # We need to change the name of a column in airlines dataset
-# or it will cause a duplicate column and will not merge
+#  or it will cause a duplicate column and will not merge
+# Need to merge with airports twice because of origin and 
+#  destination airports
 colnames(airlines) <- c("IATA_CODE", "AIRLINE_NAME")
 flights <- merge(flights, airports, by.x = "ORIGIN_AIRPORT", by.y = "IATA_CODE")
 flights <- merge(flights, airports, by.x = "DESTINATION_AIRPORT", by.y = "IATA_CODE")
@@ -75,10 +77,11 @@ head(flights)
 colnames(flights)
 
 # Remove NA values and replace by 0
+# We assume that if there is no record of delay, there was no delay
 flights[is.na(flights)] <- 0
 head(flights)
 
-# Select time attributes from flights dataset
+# Select time and delay attributes from flights dataset
 time.att <- c("SCHEDULED_TIME","ELAPSED_TIME","AIR_TIME","ARRIVAL_DELAY",
               "AIR_SYSTEM_DELAY","SECURITY_DELAY","AIRLINE_DELAY", "DEPARTURE_DELAY",
               "LATE_AIRCRAFT_DELAY","WEATHER_DELAY")
@@ -169,6 +172,7 @@ library(arules)
 library(arulesViz)
 
 ###### 3.1. Best time of the year to travel #####
+# Calculate mean delays by month
 # Get the mean of all delays in all months
 months <- seq(1, 12, 1)
 months.delays <- rep(0, 12)
@@ -177,7 +181,7 @@ for (month in months) {
   months.delays[month] <- sum(x)/nrow(x)
 }
 
-# Plot the resulting graph in a barplot
+# Plot the resulting data in a barplot
 png("questions/times.monthly.png",
     w = 1413,
     h = 1080)
@@ -191,6 +195,7 @@ barplot(months.delays,
 dev.off()
 
 ###### 3.2. Best airline to travel within #####
+# Get total dispatch time and delays by airline
 # Get the sum of all delay times
 airline.codes <- airlines$IATA_CODE
 airline.times <- rep(0, length(airline.codes))
@@ -199,7 +204,7 @@ for (i in 1:length(airline.codes)) {
   airline.times[i] <- sum(x)/nrow(x)
 }
 
-# Plot the resulting graph in a barplot
+# Plot the resulting data in a barplot
 png("questions/airlines.delays.png",
     w = 1413,
     h = 1080)
@@ -212,13 +217,14 @@ barplot(airline.times,
         main = "Airline Mean Delay Times")
 dev.off()
 
+# Get the sum of all times
 airline.times <- rep(0, length(airline.codes))
 for (i in 1:length(airline.codes)) {
   x <- flights[flights[, "AIRLINE"] == airline.codes[i], time.att]
   airline.times[i] <- sum(x)/nrow(x)
 }
 
-# Plot the resulting graph in a barplot
+# Plot the resulting data in a barplot
 png("questions/airlines.times.png",
     w = 1413,
     h = 1080)
@@ -235,7 +241,8 @@ dev.off()
 # Get attributes to use for prediction
 pred.att <- c("AIRLINE", "DESTINATION_AIRPORT", "ORIGIN_AIRPORT", "MONTH", "DAY", "DAY_OF_WEEK", "SCHEDULED_DEPARTURE", "SCHEDULED_TIME", "SCHEDULED_ARRIVAL")
 
-# Take a sample of the dataset to speed up models construction
+# Take a sample of the dataset to speed up models construction 
+# (20%) ~ 1M records
 set.seed(123456)
 sample <- sample(1:nrow(flights),
                  size = ceiling(0.2 * (nrow(flights))),
@@ -243,6 +250,7 @@ sample <- sample(1:nrow(flights),
 flights.sample <- flights[sample, c(pred.att, "DELAY", "DELAYED")]
 
 # Generate train and test datasets
+# 2/3 train, 1/3 test
 set.seed(123456)
 train <- createDataPartition(flights.sample$DELAYED,
                              p = 2/3,
@@ -263,6 +271,8 @@ flights.regr.probs <- predict(flights.regr,
 flights.regr.pred = rep(0, 
                         nrow(flights.test))
 flights.regr.pred[flights.regr.probs > 0.5] = 1
+
+# Build and print confusion matrix
 flights.regr.cm <- confusionMatrix(flights.regr.pred, 
                                    flights.test[, "DELAYED"],
                                    positive = '1')
@@ -274,7 +284,8 @@ png("questions/delayed.predictions.regr.png",
     h = 720)
 mgraph(flights.test[, "DELAYED"],
        flights.regr.pred,
-       graph = "ROC")
+       graph = "ROC",
+       Grid = 10)
 dev.off()
 
 #### 3.3.1.2. Decision Tree ####
@@ -290,12 +301,14 @@ png("questions/delayed.tree.png",
 rpart.plot(flights.tree)
 dev.off()
 
-# Evaluate the tree predictions
+# Get tree predictions
 flights.tree.probs <- predict(flights.tree, 
                               flights.test[, pred.att])
 flights.tree.pred = rep(0, 
                         nrow(flights.test))
 flights.tree.pred[flights.tree.probs > 0.6] = 1
+
+# Build and print confusion matrix
 flights.tree.cm <- confusionMatrix(flights.tree.pred, 
                                    flights.test[, "DELAYED"],
                                    positive = '1')
@@ -307,7 +320,8 @@ png("questions/delayed.predictions.tree.png",
     h = 720)
 mgraph(flights.test[, "DELAYED"],
        flights.tree.pred,
-       graph = "ROC")
+       graph = "ROC",
+       Grid = 10)
 dev.off()
 
 #### 3.3.1.3. Naive Bayes ####
@@ -321,13 +335,15 @@ str(flights.test)
 # Create the probabilistic model
 # DELAYED needs to be converted to factor because of the Naive Bayes definition
 # "Computes the conditional a-posterior probabilities of a **categorical** class variable 
-# given independent predictor variables using the Bayes rule."
+#   given independent predictor variables using the Bayes rule."
 flights.nb = naiveBayes(as.factor(DELAYED) ~ .,
                         data = flights.train[, c(pred.att, "DELAYED")])
 
-# Evaluate the probabilistic predictions
+# Get the probabilistic predictions
 flights.nb.pred <- predict(flights.nb, 
                            flights.test[, pred.att])
+
+# Build and print confusion matrix
 flights.nb.cm <- confusionMatrix(flights.nb.pred, 
                                  as.factor(flights.test[, "DELAYED"]),
                                  positive = '1')
@@ -339,7 +355,8 @@ png("questions/delayed.predictions.nb.png",
     h = 720)
 mgraph(as.numeric(flights.test[, "DELAYED"]),
        as.numeric(flights.nb.pred),
-       graph = "ROC")
+       graph = "ROC",
+       Grid = 10)
 dev.off()
 
 ##### 3.3.2. Predict the delay of a flight ####
@@ -349,9 +366,11 @@ dev.off()
 flights.delayed.regr <- lm(DELAY ~ .,
                            data = flights.train[, c(pred.att, "DELAY")])
 
-# Evaluate model predictions
+# Get model predictions
 flights.delayed.regr.pred <- as.numeric(predict(flights.delayed.regr, 
                                         flights.test[, pred.att]))
+
+# Calculate some error metrics
 print(mmetric(flights.test[, "DELAY"],
               flights.delayed.regr.pred,
               c("SSE","RMSE","MAE")))
@@ -367,7 +386,7 @@ dev.off()
 
 ###### 3.4. Group airports by delays #####
 # Start by group origin airports
-# Start by a hierarchical cluster
+# Start by doing hierarchical clustering
 # Prepare dataset
 airports.origin.times <- data.frame(AIRPORT = integer(),
                                     ARRIVAL_DELAY = integer(),
@@ -417,7 +436,9 @@ dev.off()
 # Set seed to get always the same results
 set.seed(123456)
 
-# Run kmeans function with 3/5 centers
+# Run kmeans function with:
+# 3 centers - BAD, AVERAGE, GOOD
+# 5 centers - HORRIBLE, BAD, AVERAGE, GOOD, EXCELLENT
 airports.origin.kmeans.3 <- kmeans(airports.origin.times[, delay.att], 
                                    centers = 3, 
                                    nstart = 50)
@@ -425,7 +446,7 @@ airports.origin.kmeans.5 <- kmeans(airports.origin.times[, delay.att],
                                    centers = 5, 
                                    nstart = 50)
 
-# Plot cluster
+# Plot clusters
 png("questions/airports.origin.kmeans.3.png", 
     w = 1413,
     h = 1080)
@@ -498,7 +519,9 @@ dev.off()
 # Set seed to get always the same results
 set.seed(123456)
 
-# Run kmeans function with 3/5 centers
+# Run kmeans function with:
+# 3 centers - BAD, AVERAGE, GOOD
+# 5 centers - HORRIBLE, BAD, AVERAGE, GOOD, EXCELLENT
 airports.dest.kmeans.3 <- kmeans(airports.dest.times[, delay.att], 
                                  centers = 3, 
                                  nstart = 50)
@@ -506,7 +529,7 @@ airports.dest.kmeans.5 <- kmeans(airports.dest.times[, delay.att],
                                  centers = 5, 
                                  nstart = 50)
 
-# Plot cluster
+# Plot clusters
 png("questions/airports.dest.kmeans.3.png", 
     w = 1413,
     h = 1080)
@@ -549,17 +572,18 @@ flights.association.data <- as(flights.association.data,
                                "transactions")
 
 # Run Apriori algorithm
+# We need to use a small support because of the dataaset size
 flights.rules <- apriori(flights.association.data,
                          parameter = list(support = 0.000001, 
                                           confidence = 0.4))
 
-# Analyze the rules 
+# Analyze the first 10 rules 
 summary(flights.rules)
 inspect(flights.rules[1:10])
 inspect(sort(flights.rules, 
              by = "lift")[1:10])
 
-# Select rules that have great delay and analyze them
+# Select rules that present great delay and analyze them
 for (att in c("Large","Huge")) {
   flights.rules.sub = subset(flights.rules, 
                              subset = (rhs %in% paste("DELAY=", att, sep="")))
