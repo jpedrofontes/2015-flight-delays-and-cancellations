@@ -196,6 +196,26 @@ dev.off()
 
 ###### 3.2. Best airline to travel within #####
 # Get total dispatch time and delays by airline
+# Get the sum of all times
+airline.times <- rep(0, length(airline.codes))
+for (i in 1:length(airline.codes)) {
+  x <- flights[flights[, "AIRLINE"] == airline.codes[i], time.att]
+  airline.times[i] <- sum(x)/nrow(x)
+}
+
+# Plot the resulting data in a barplot
+png("questions/airlines.times.png",
+    w = 1413,
+    h = 1080)
+barplot(airline.times, 
+        las = 0,
+        names.arg = airline.codes,
+        col = "orange",
+        xlab = "Airline Codes",
+        ylab = "Mean Dispatch Time",
+        main = "Airline Mean Flight Dispatch Times")
+dev.off()
+
 # Get the sum of all delay times
 airline.codes <- airlines$IATA_CODE
 airline.times <- rep(0, length(airline.codes))
@@ -215,26 +235,6 @@ barplot(airline.times,
         xlab = "Airline Codes",
         ylab = "Delay Mean",
         main = "Airline Mean Delay Times")
-dev.off()
-
-# Get the sum of all times
-airline.times <- rep(0, length(airline.codes))
-for (i in 1:length(airline.codes)) {
-  x <- flights[flights[, "AIRLINE"] == airline.codes[i], time.att]
-  airline.times[i] <- sum(x)/nrow(x)
-}
-
-# Plot the resulting data in a barplot
-png("questions/airlines.times.png",
-    w = 1413,
-    h = 1080)
-barplot(airline.times, 
-        las = 0,
-        names.arg = airline.codes,
-        col = "orange",
-        xlab = "Airline Codes",
-        ylab = "Mean Dispatch Time",
-        main = "Airline Mean Flight Dispatch Times")
 dev.off()
 
 ###### 3.3. Predict if a flight will be delayed and the delay #####
@@ -401,9 +401,9 @@ for (airport in airports$IATA_CODE) {
 }
 
 # Build distance matrices
-airports.origin.euclidean.dist = dist(airports.origin.times[, delay.att], 
+airports.origin.euclidean.dist <- dist(airports.origin.times[, delay.att], 
                                       method = "euclidean")
-airports.origin.euclidean.dist.full = as.matrix(dist(airports.origin.times[, delay.att], 
+airports.origin.euclidean.dist.full <- as.matrix(dist(airports.origin.times[, delay.att], 
                                                      method = "euclidean", 
                                                      diag = TRUE, 
                                                      upper = TRUE))
@@ -412,13 +412,28 @@ airports.origin.euclidean.dist.full = as.matrix(dist(airports.origin.times[, del
 airports.origin.hclust <- hclust(airports.origin.euclidean.dist, 
                                  method="complete")
 
-# Plot the dendrogram
-png("questions/airports.origin.dendro.png", 
+# Plot the dendrograms
+png("questions/airports.origin.dendro.3.png", 
     w = 3040,
     h = 2160)
 plot(airports.origin.hclust, 
      airports.origin.times$AIRPORT,
      cex = 0.6)
+# Place rectangles separating clusters
+rect.hclust(airports.origin.hclust, 
+            k = 3,
+            border = "red")
+dev.off()
+png("questions/airports.origin.dendro.5.png", 
+    w = 3040,
+    h = 2160)
+plot(airports.origin.hclust, 
+     airports.origin.times$AIRPORT,
+     cex = 0.6)
+# Place rectangles separating clusters
+rect.hclust(airports.origin.hclust, 
+            k = 5,
+            border = "red")
 dev.off()
 
 # Plot the heatmap
@@ -496,12 +511,27 @@ airports.dest.hclust <- hclust(airports.dest.euclidean.dist,
                                method="complete")
 
 # Plot the dendrogram
-png("questions/airports.dest.dendro.png", 
+png("questions/airports.dest.dendro.3.png", 
     w = 3040,
     h = 2160)
 plot(airports.dest.hclust, 
      airports.dest.times$AIRPORT,
      cex = 0.6)
+# Place rectangles separating clusters
+rect.hclust(airports.origin.hclust, 
+            k = 3,
+            border = "red")
+dev.off()
+png("questions/airports.dest.dendro.5.png", 
+    w = 3040,
+    h = 2160)
+plot(airports.dest.hclust, 
+     airports.dest.times$AIRPORT,
+     cex = 0.6)
+# Place rectangles separating clusters
+rect.hclust(airports.origin.hclust, 
+            k = 5,
+            border = "red")
 dev.off()
 
 # Plot the heatmap
@@ -514,6 +544,9 @@ heatmap(airports.dest.euclidean.dist.full,
         cexRow = 0.6, 
         cexCol = 0.6)
 dev.off()
+
+# Cut dendogram in level 3 and level 5
+# ...
 
 # Now try K-Means
 # Set seed to get always the same results
