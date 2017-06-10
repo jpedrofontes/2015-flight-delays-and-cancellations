@@ -605,7 +605,7 @@ flights.association.data <- as(flights.association.data,
                                "transactions")
 
 # Run Apriori algorithm
-# We need to use a small support because of the dataaset size
+# We need to use a small support because of the dataset size
 flights.rules <- apriori(flights.association.data,
                          parameter = list(support = 0.000001, 
                                           confidence = 0.4))
