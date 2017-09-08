@@ -92,7 +92,7 @@ summary(flights[ ,time.att])
 # DELAY represents the sum of all delay attributes
 # DELAYED represents if the flight as been delayed or not (positive delay)
 flights[, "DELAY"] <- rowSums(flights[, delay.att])
-flights[, "DELAYED"] <- ifelse(flights$DELAY > 0, 0, 1)
+flights[, "DELAYED"] <- ifelse(flights$DELAY > 0, 1, 0)
 
 # Save the current R session.
 save.image("sessions/flights.session")
@@ -196,6 +196,8 @@ dev.off()
 
 ###### 3.2. Best airline to travel within #####
 # Get total dispatch time and delays by airline
+airline.codes <- airlines$IATA_CODE
+
 # Get the sum of all times
 airline.times <- rep(0, length(airline.codes))
 for (i in 1:length(airline.codes)) {
@@ -217,7 +219,6 @@ barplot(airline.times,
 dev.off()
 
 # Get the sum of all delay times
-airline.codes <- airlines$IATA_CODE
 airline.times <- rep(0, length(airline.codes))
 for (i in 1:length(airline.codes)) {
   x <- flights[flights[, "AIRLINE"] == airline.codes[i], delay.att]
@@ -306,7 +307,7 @@ flights.tree.probs <- predict(flights.tree,
                               flights.test[, pred.att])
 flights.tree.pred = rep(0, 
                         nrow(flights.test))
-flights.tree.pred[flights.tree.probs > 0.6] = 1
+flights.tree.pred[flights.tree.probs > 0.3] = 1
 
 # Build and print confusion matrix
 flights.tree.cm <- confusionMatrix(flights.tree.pred, 
@@ -544,9 +545,6 @@ heatmap(airports.dest.euclidean.dist.full,
         cexRow = 0.6, 
         cexCol = 0.6)
 dev.off()
-
-# Cut dendogram in level 3 and level 5
-# ...
 
 # Now try K-Means
 # Set seed to get always the same results
